@@ -31,17 +31,16 @@ module.exports = async (req, res) => {
   try {
     const fileBuffer = await getRawBody(req);
 
-    // 1. Save locally (for local dev)
-    const imgDir = path.join(process.cwd(), 'images');
-    if (!fs.existsSync(imgDir)) {
-      fs.mkdirSync(imgDir, { recursive: true });
-    }
-    const localFilePath = path.join(imgDir, filename);
-    fs.writeFileSync(localFilePath, fileBuffer);
-
-    // 2. Commit to GitHub REST API (for serverless Vercel persistence)
+    // Commit to GitHub REST API (primary storage for Vercel deployments)
     if (process.env.GITHUB_TOKEN) {
       await commitToGitHub(`images/${filename}`, fileBuffer, `CMS Image Upload: ${filename}`);
+    } else {
+      // Local dev fallback — write to disk only when no GitHub token is set
+      const imgDir = path.join(process.cwd(), 'images');
+      if (!fs.existsSync(imgDir)) {
+        fs.mkdirSync(imgDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(imgDir, filename), fileBuffer);
     }
 
     res.status(200).json({
